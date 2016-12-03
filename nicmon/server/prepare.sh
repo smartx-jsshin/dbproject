@@ -1,5 +1,5 @@
 #!/bin/bash
 
 sudo apt-get update
-sudo apt-get install python-pip libmysqlclient-dev python-dev
-pip install -e requirements.txt
+sudo apt-get install -y python-pip libmysqlclient-dev python-dev
+pip install -r requirements.txt

@@ -1,2 +1,4 @@
 sudo apt update
-sudo apt install ethtool
+sudo apt install -y ethtool lshw
+
+sudo pip install -r requirements.txt

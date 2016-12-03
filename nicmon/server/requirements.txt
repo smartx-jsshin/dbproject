@@ -1,2 +1,5 @@
 httplib2
-yaml
+pyyaml
+flask
+MySQL-python
+ipaddress
