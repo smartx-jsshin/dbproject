@@ -82,11 +82,15 @@ class NICMonCollector:
                 t = i.strip().split(' ')
                 if 'inet6' not in t and 'inet' in t:
                     inet_info['ipaddr'] = t[1]
+            if len(inet_info) is 0:
+                inet_info['ipaddr'] = None
 
             for i in out.split('\n'):
                 t = i.strip().split(' ')
                 if 'link/ether' in t:
                     ether_info['macaddr'] = t[1]
+            if len(ether_info) is 0:
+                ether_info['macaddr'] = None
 
             nic_info['name'] = nic_name
             nic_info['inet'] = inet_info
