@@ -4,6 +4,7 @@ import shlex
 import httplib2
 import logging
 import json
+import time
 
 class NICMonCollector:
     def __init__(self, __id, __server_ip, __server_pt):
@@ -52,20 +53,20 @@ class NICMonCollector:
         self.logger.debug("Virtual NIC list: " + vnic_list.__str__())
         return pnic_list, vnic_list
 
-    def collect(self):
+    def collect_nic(self):
         p, v = self.get_nic_list()
 
         pnic_list = self.create_nic_info(p, True)
         vnic_list = self.create_nic_info(v, False)
 
         nic_list = pnic_list + vnic_list
-        print nic_list
 
         # Report to Server by HTTP Message
-        http = httplib2.Http()
-        url = "http://"+self.server_ip+":"+self.server_port+"/server/"+str(self.id)+"/nic"
-        self.logger.debug(url)
-        http.request(url, body=json.dumps(nic_list), method='POST')
+        if len(nic_list) is not 0:
+            http = httplib2.Http()
+            url = "http://"+self.server_ip+":"+self.server_port+"/server/"+str(self.id)+"/nic"
+            self.logger.debug(url)
+            http.request(url, body=json.dumps(nic_list), method='POST')
 
     def create_nic_info(self, __nic_list, __is_physical):
         nic_list = list()
@@ -83,14 +84,14 @@ class NICMonCollector:
                 if 'inet6' not in t and 'inet' in t:
                     inet_info['ipaddr'] = t[1]
             if len(inet_info) is 0:
-                inet_info['ipaddr'] = None
+                inet_info['ipaddr'] = 'NULL'
 
             for i in out.split('\n'):
                 t = i.strip().split(' ')
                 if 'link/ether' in t:
                     ether_info['macaddr'] = t[1]
             if len(ether_info) is 0:
-                ether_info['macaddr'] = None
+                ether_info['macaddr'] = 'NULL'
 
             nic_info['name'] = nic_name
             nic_info['inet'] = inet_info
@@ -98,13 +99,16 @@ class NICMonCollector:
 
             if __is_physical:
                 nic_info['type'] = "physical"
-                nic_info['model'] = self.get_pnic_model(nic_name)
+                model, vendor = self.get_pnic_model(nic_name)
+                nic_info['model'] = model
+                nic_info['vendor'] = vendor
             elif not __is_physical:
                 nic_info['type'] = "virtual"
                 nic_info['model'] = self.get_vnic_model(nic_name)
+                nic_info['vendor'] = 'NULL'
 
             if not nic_info['model']:
-                nic_info['model'] = None
+                nic_info['model'] = 'NULL'
 
             nic_list.append(nic_info)
 
@@ -126,18 +130,21 @@ class NICMonCollector:
         output = subproc2.communicate()
 
         nic_model = None
+        nic_vendor = None
         for i in output[0].split('\n'):
             if "product" in i:
                 nic_model = i.split(":")[1].strip()
+            elif "vendor" in i:
+                nic_vendor = i.split(":")[1].strip()
 
         self.logger.debug("NIC Model for "+__nic_name+": "+nic_model)
-        return nic_model
+        return nic_model, nic_vendor
 
     def get_vnic_model(self, __nic_name):
         cmd = ['ethtool', '-i', __nic_name]
         out = self.shell_command(cmd)
 
-        nic_model = None
+        nic_model = 'NULL'
         for i in out[1].split('\n'):
             if "driver" in i:
                 nic_model = i.split(':')[1].strip()
@@ -152,4 +159,5 @@ if __name__ == "__main__":
     collect_cycle = 10
 
     collector = NICMonCollector(host_id, server_ip, server_pt)
-    collector.collect()
+    collector.collect_nic()
+    # time.sleep(collect_cycle)
