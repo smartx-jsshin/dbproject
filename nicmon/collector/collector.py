@@ -6,9 +6,10 @@ import logging
 import json
 
 class NICMonCollector:
-    def __init__(self):
-        self.server_ip = '127.0.0.1'
-        self.server_port = '17777'
+    def __init__(self, __id, __server_ip, __server_pt):
+        self.id = __id
+        self.server_ip = __server_ip
+        self.server_port = __server_pt
 
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
@@ -62,7 +63,7 @@ class NICMonCollector:
 
         # Report to Server by HTTP Message
         http = httplib2.Http()
-        url = "http://"+self.server_ip+":"+self.server_port+"/server/nic"
+        url = "http://"+self.server_ip+":"+self.server_port+"/server/"+str(self.id)+"/nic"
         self.logger.debug(url)
         http.request(url, body=json.dumps(nic_list), method='POST')
 
@@ -75,25 +76,76 @@ class NICMonCollector:
 
             nic_info = dict()
             inet_info = dict()
+            ether_info = dict()
 
             for i in out.split('\n'):
                 t = i.strip().split(' ')
                 if 'inet6' not in t and 'inet' in t:
                     inet_info['ipaddr'] = t[1]
-                    inet_info['subnet'] = t[3]
+
+            for i in out.split('\n'):
+                t = i.strip().split(' ')
+                if 'link/ether' in t:
+                    ether_info['macaddr'] = t[1]
 
             nic_info['name'] = nic_name
             nic_info['inet'] = inet_info
+            nic_info['ether'] = ether_info
 
             if __is_physical:
                 nic_info['type'] = "physical"
+                nic_info['model'] = self.get_pnic_model(nic_name)
             elif not __is_physical:
                 nic_info['type'] = "virtual"
+                nic_info['model'] = self.get_vnic_model(nic_name)
+
+            if not nic_info['model']:
+                nic_info['model'] = None
 
             nic_list.append(nic_info)
 
         return nic_list
 
+    def get_pnic_model(self, __nic_name):
+        cmd1 = ['lshw', '-c', 'network']
+        cmd2 = ['grep', __nic_name, '-A', '10', '-B', '7']
+
+        subproc1 = subprocess.Popen(cmd1,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE)
+
+        subproc2 = subprocess.Popen(cmd2,
+                                    stdin=subproc1.stdout,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE)
+
+        output = subproc2.communicate()
+
+        nic_model = None
+        for i in output[0].split('\n'):
+            if "product" in i:
+                nic_model = i.split(":")[1].strip()
+
+        self.logger.debug("NIC Model for "+__nic_name+": "+nic_model)
+        return nic_model
+
+    def get_vnic_model(self, __nic_name):
+        cmd = ['ethtool', '-i', __nic_name]
+        out = self.shell_command(cmd)
+
+        nic_model = None
+        for i in out[1].split('\n'):
+            if "driver" in i:
+                nic_model = i.split(':')[1].strip()
+                self.logger.debug("NIC Model for " + __nic_name + ": " + nic_model)
+                break
+        return nic_model
+
 if __name__ == "__main__":
-    collector = NICMonCollector()
+    host_id = 1
+    server_ip = '127.0.0.1'
+    server_pt = '17777'
+    collect_cycle = 10
+
+    collector = NICMonCollector(host_id, server_ip, server_pt)
     collector.collect()

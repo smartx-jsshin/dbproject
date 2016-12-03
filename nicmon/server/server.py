@@ -4,6 +4,7 @@ import shlex
 from flask import Flask, request
 import MySQLdb
 import logging
+import json
 
 
 class NICMonServer:
@@ -15,7 +16,7 @@ class NICMonServer:
         # self.init_db(__db_ip, __user, __password, __dbname)
 
     def init_logger(self):
-        self.logger = logging.getLogger("TemplateInterpreter")
+        self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
         fm = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
         ch = logging.StreamHandler()
@@ -28,6 +29,19 @@ class NICMonServer:
                                   user=__user,
                                   passwd=__password,
                                   db=__dbname)
+
+    def update_nic_info(self, __server_id, __nic_info):
+        try:
+            nic_info = json.loads(__nic_info)
+        except ValueError, e:
+            self.logger.error(e.message)
+            return "Json Format is not Valid: (" + e.message + ")"
+
+        self.logger.debug("Received Information: ")
+        self.logger.debug(nic_info)
+        # Parser
+
+        return "Updated Successfully"
 
     def shell_command(self, __cmd):
         self.logger.debug("Shell command: " + __cmd.__str__())
@@ -49,14 +63,16 @@ db_user = "netcs"
 db_password = 'dbtest'
 db_name = 'dbtest'
 
+nicmon = NICMonServer(db_ip, db_user, db_password, db_name)
+
 # REST API Part
 app = Flask(__name__)
 
 
-@app.route("/server/nic", methods=['POST'])
-def create_nic_tuple():
-    print request.data
-    return "Thank you!"
+@app.route("/server/<string:server_id>/nic", methods=['POST'])
+def create_nic_tuple(server_id):
+    return nicmon.update_nic_info(server_id, request.data)
 
 app.run(port=server_pt)
-nicmon = NICMonServer(db_ip, db_user, db_password, db_name)
+
+
