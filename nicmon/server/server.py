@@ -46,7 +46,7 @@ class NICMonServer:
 server_pt = "17777"
 db_ip = "127.0.0.1"
 db_user = "netcs"
-db_password = 'fn!xo!ska!'
+db_password = 'dbtest'
 db_name = 'dbtest'
 
 # REST API Part
