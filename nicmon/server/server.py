@@ -90,12 +90,12 @@ class NICMonServer:
             changed = False
             cmd = "UPDATE interface set"
 
-            if (not out[0]['nic_id'] and nic_id is not 'NULL') or int(out[0]['nic_id']) != nic_id:
+            if out[0]['nic_id'] and int(out[0]['nic_id']) != nic_id:
                 if changed:
                     cmd += ","
                 cmd += " nic_id = " + str(nic_id)
                 changed = True
-            if (not out[0]['net_id'] and net_id is not 'NULL') or int(out[0]['net_id']) != net_id:
+            if out[0]['net_id'] and int(out[0]['net_id']) != net_id:
                 if changed:
                     cmd += ","
                 cmd += " net_id = " + str(net_id)
@@ -103,17 +103,17 @@ class NICMonServer:
             if out[0]['interface_name'] != interface_name:
                 if changed:
                     cmd += ","
-                cmd += " interface_name = " + str(interface_name)
+                cmd += " interface_name = \"" + str(interface_name) + "\""
                 changed = True
-            if (not out[0]['ip_address'] and ip_address is not 'NULL') or out[0]['ip_address'] != ip_address:
+            if out[0]['ip_address'] and out[0]['ip_address'] != ip_address:
                 if changed:
                     cmd += ","
-                cmd += " ip_address = " + ip_address
+                cmd += " ip_address = \"" + ip_address + "\""
                 changed = True
-            if (not out[0]['mac_address'] and 'mac_address' is not 'NULL') or out[0]['mac_address'] != mac_address:
+            if out[0]['mac_address'] and out[0]['mac_address'] != mac_address:
                 if changed:
                     cmd += ","
-                cmd += " mac_address = " + mac_address
+                cmd += " mac_address = \"" + mac_address + "\""
                 changed = True
 
             if changed:
@@ -121,7 +121,7 @@ class NICMonServer:
                 self.logger.debug("in update_nic_info(), Update Query: " + cmd)
                 self._db_cursor.execute(cmd)
             else:
-                self.logger.debug("in update_nic_info(), No Update for NIC information from Server "+ server_id)
+                self.logger.debug("in update_nic_info(), No Update for NIC information from Server " + server_id)
 
         elif len(out) is 0:
             # Interfaces is new
@@ -130,10 +130,24 @@ class NICMonServer:
 
             cmd = "Insert into " \
                   "interface (server_id, nic_id, net_id, interface_name, ip_address, mac_address) " \
-                  "VALUES " \
-                  + "(" + str(server_id) + "," + str(nic_id) + "," + str(net_id) + ", \"" \
-                  + interface_name + "\", \"" + ip_address + "\", \"" + mac_address + "\")"
+                  "VALUES (" + str(server_id) + "," + str(nic_id) + "," + str(net_id)
 
+            if interface_name == 'NULL':
+                cmd += ", NULL"
+            else:
+                cmd += ", \"" + interface_name + "\""
+
+            if ipaddress == 'NULL':
+                cmd += ", NULL"
+            else:
+                cmd += ", \"" + ip_address + "\""
+
+            if mac_address == 'NULL':
+                cmd += ", NULL"
+            else:
+                cmd += ", \"" + mac_address + "\""
+
+            cmd += ")"
             self.logger.debug("in update_nic_info(), Input Query: " + cmd)
             self._db_cursor.execute(cmd)
 
@@ -211,7 +225,7 @@ class NICMonServer:
             self.logger.debug("in get_net_id(), Query for the added network: " + cmd)
             self._db_cursor.execute(cmd)
             out = self._db_cursor.fetchallDict()
-            self.logger.debug("in get_net_id(), Query Output: ", + out.__str__())
+            self.logger.debug("in get_net_id(), Query Output: " + out.__str__())
             net_id = out[0]['net_id']
 
         return net_id
