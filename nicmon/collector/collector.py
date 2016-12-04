@@ -171,5 +171,5 @@ if __name__ == "__main__":
             time.sleep(collect_cycle)
 
     else:
-        print "Configuration file is not found: server_config.yaml"
+        print "Configuration file is not found: collector_config.yaml"
         exit(1)
