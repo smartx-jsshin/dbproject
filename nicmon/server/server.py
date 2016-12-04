@@ -70,6 +70,7 @@ class NICMonServer:
         ip_address = __nic_info['inet']['ipaddr']
         mac_address = __nic_info['ether']['macaddr']
         net_id = self.get_net_id(ip_address)
+        status = __nic_info['status']
 
         # Check the constraint and replace None value in to 'NULL' string
         if not server_id or not interface_name:
@@ -90,31 +91,36 @@ class NICMonServer:
             changed = False
             cmd = "UPDATE interface set"
 
-            if out[0]['nic_id'] and int(out[0]['nic_id']) != nic_id:
+            if (not out[0]['nic_id'] and nic_id != 'NULL') and int(out[0]['nic_id']) != nic_id:
                 if changed:
                     cmd += ","
                 cmd += " nic_id = " + str(nic_id)
                 changed = True
-            if out[0]['net_id'] and int(out[0]['net_id']) != net_id:
+            if (not out[0]['net_id'] and net_id != 'NULL') and int(out[0]['net_id']) != net_id:
                 if changed:
                     cmd += ","
                 cmd += " net_id = " + str(net_id)
                 changed = True
-            if out[0]['interface_name'] != interface_name:
+            if (not out[0]['interface_name'] and interface_name != 'NULL') \
+                    and out[0]['interface_name'] != interface_name:
                 if changed:
                     cmd += ","
                 cmd += " interface_name = \"" + str(interface_name) + "\""
                 changed = True
-            if out[0]['ip_address'] and out[0]['ip_address'] != ip_address:
+            if (not out[0]['ip_address'] and ip_address != 'NULL') and out[0]['ip_address'] != ip_address:
                 if changed:
                     cmd += ","
                 cmd += " ip_address = \"" + ip_address + "\""
                 changed = True
-            if out[0]['mac_address'] and out[0]['mac_address'] != mac_address:
+            if (not out[0]['mac_address'] and mac_address != 'NULL') and out[0]['mac_address'] != mac_address:
                 if changed:
                     cmd += ","
                 cmd += " mac_address = \"" + mac_address + "\""
                 changed = True
+            if (not out[0]['status'] and status != 'NULL') and out[0]['status'] != status:
+                if changed:
+                    cmd += ","
+                cmd += " status = \"" + status + "\""
 
             if changed:
                 cmd += " where server_id = " + str(server_id) + " and interface_name = \"" + interface_name + "\""
@@ -129,7 +135,7 @@ class NICMonServer:
                               % (server_id, nic_id, net_id, interface_name, ip_address, mac_address))
 
             cmd = "Insert into " \
-                  "interface (server_id, nic_id, net_id, interface_name, ip_address, mac_address) " \
+                  "interface (server_id, nic_id, net_id, interface_name, ip_address, mac_address, status) " \
                   "VALUES (" + str(server_id) + "," + str(nic_id) + "," + str(net_id)
 
             if interface_name == 'NULL':
@@ -146,6 +152,11 @@ class NICMonServer:
                 cmd += ", NULL"
             else:
                 cmd += ", \"" + mac_address + "\""
+
+            if status == 'NULL':
+                cmd += ", NULL"
+            else:
+                cmd += ", \"" + status + "\""
 
             cmd += ")"
             self.logger.debug("in update_nic_info(), Input Query: " + cmd)
@@ -172,12 +183,6 @@ class NICMonServer:
             cmd = "insert into nic_spec(model, vendor) values (\"" + __model+"\", \"" + __vendor + "\")"
             self.logger.debug("in get_nic_spec_id(), NIC Model is not exist. Add new nic_model: " + cmd)
             self._db_cursor.execute(cmd)
-
-            cmd = 'select * from nic_spec'
-            self.logger.debug("in get_nic_spec_id(), DB Query to list all nic_spec: " + cmd)
-            self._db_cursor.execute(cmd)
-            out = self._db_cursor.fetchallDict()
-            self.logger.debug("in get_nic_spec_id(), all nic_spec list: " + out.__str__())
 
             cmd = 'select nic_id from nic_spec where model = \"' + __model + "\""
             self.logger.debug("in get_nic_spec_id(), Query to extract the added nic_model: " + cmd)

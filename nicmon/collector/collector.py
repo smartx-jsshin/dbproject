@@ -96,6 +96,12 @@ class NICMonCollector:
             if len(ether_info) is 0:
                 ether_info['macaddr'] = 'NULL'
 
+            for i in out.split('\n'):
+                t = i.strip().split(' ')
+                if 'state' in t:
+                    idx = t.index('state') + 1
+                    nic_info['status'] = t[idx]
+
             nic_info['name'] = nic_name
             nic_info['inet'] = inet_info
             nic_info['ether'] = ether_info
