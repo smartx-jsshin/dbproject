@@ -126,6 +126,7 @@ class NICMonServer:
                 if changed:
                     cmd += ","
                 cmd += " status = \"" + status + "\""
+                changed = True
 
             if changed:
                 cmd += " where server_id = " + str(server_id) + " and interface_name = \"" + interface_name + "\""
