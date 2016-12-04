@@ -91,33 +91,38 @@ class NICMonServer:
             changed = False
             cmd = "UPDATE interface set"
 
-            if (not out[0]['nic_id'] and nic_id != 'NULL') and int(out[0]['nic_id']) != nic_id:
+            if (not out[0]['nic_id'] and nic_id != 'NULL') or \
+                    (out[0]['nic_id'] and int(out[0]['nic_id']) != nic_id):
                 if changed:
                     cmd += ","
                 cmd += " nic_id = " + str(nic_id)
                 changed = True
-            if (not out[0]['net_id'] and net_id != 'NULL') and int(out[0]['net_id']) != net_id:
+            if (not out[0]['net_id'] and net_id != 'NULL') or \
+                    (out[0]['net_id'] and int(out[0]['net_id']) != net_id):
                 if changed:
                     cmd += ","
                 cmd += " net_id = " + str(net_id)
                 changed = True
-            if (not out[0]['interface_name'] and interface_name != 'NULL') \
-                    and out[0]['interface_name'] != interface_name:
+            if (not out[0]['interface_name'] and interface_name != 'NULL') or\
+                    (out[0]['interface_name'] and out[0]['interface_name'] != interface_name):
                 if changed:
                     cmd += ","
                 cmd += " interface_name = \"" + str(interface_name) + "\""
                 changed = True
-            if (not out[0]['ip_address'] and ip_address != 'NULL') and out[0]['ip_address'] != ip_address:
+            if (not out[0]['ip_address'] and ip_address != 'NULL') or \
+                    (out[0]['ip_address'] and out[0]['ip_address'] != ip_address):
                 if changed:
                     cmd += ","
                 cmd += " ip_address = \"" + ip_address + "\""
                 changed = True
-            if (not out[0]['mac_address'] and mac_address != 'NULL') and out[0]['mac_address'] != mac_address:
+            if (not out[0]['mac_address'] and mac_address != 'NULL') or \
+                    (out[0]['mac_address'] and out[0]['mac_address'] != mac_address):
                 if changed:
                     cmd += ","
                 cmd += " mac_address = \"" + mac_address + "\""
                 changed = True
-            if (not out[0]['status'] and status != 'NULL') and out[0]['status'] != status:
+            if (not out[0]['status'] and status != 'NULL') or \
+                    (out[0]['status'] and out[0]['status'] != status):
                 if changed:
                     cmd += ","
                 cmd += " status = \"" + status + "\""
