@@ -85,6 +85,7 @@ class NICMonCollector:
                 t = i.strip().split(' ')
                 if 'inet6' not in t and 'inet' in t:
                     inet_info['ipaddr'] = t[1]
+                    break
             if len(inet_info) is 0:
                 inet_info['ipaddr'] = 'NULL'
 

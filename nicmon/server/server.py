@@ -90,19 +90,19 @@ class NICMonServer:
             changed = False
             cmd = "UPDATE interface set"
 
-            if int(out[0]['nic_id']) != nic_id:
+            if (not out[0]['nic_id'] and nic_id is not 'NULL') or int(out[0]['nic_id']) != nic_id:
                 cmd += " nic_id = " + str(nic_id)
                 changed = True
-            if int(out[0]['net_id']) != net_id:
+            if (not out[0]['net_id'] and net_id is not 'NULL') or int(out[0]['net_id']) != net_id:
                 cmd += " net_id = " + str(net_id)
                 changed = True
             if out[0]['interface_name'] != interface_name:
                 cmd += " interface_name = " + str(interface_name)
                 changed = True
-            if out[0]['ip_address'] != ip_address:
+            if (not out[0]['ip_address'] and ip_address is not 'NULL') or out[0]['ip_address'] != ip_address:
                 cmd += " ip_address = " + ip_address
                 changed = True
-            if out[0]['mac_address'] != mac_address:
+            if (not out[0]['mac_address'] and 'mac_address' is not 'NULL') or out[0]['mac_address'] != mac_address:
                 cmd += " mac_address = " + mac_address
                 changed = True
 
