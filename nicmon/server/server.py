@@ -64,7 +64,6 @@ class NICMonServer:
         # in "network" table
         # interface_id(auto_increment), server_id, nic_id(FK), net_id(FK), interface_name, ip_address, mac_address
 
-        interface_id = None
         server_id = __server_id
         nic_id = self.get_nic_spec_id(__nic_info['model'], __nic_info['vendor'])
         interface_name = __nic_info['name']
@@ -73,8 +72,9 @@ class NICMonServer:
         net_id = self.get_net_id(ip_address)
 
         # Check the constraint and replace None value in to 'NULL' string
-        if not interface_id or not server_id or not interface_name:
+        if not server_id or not interface_name:
             self.logger.error("in update_nic_info(), Required information is empty!!")
+            return
 
         cmd = "select * from interface where server_id = " + server_id + \
               ' and interface_name = \"' + interface_name + '\"'
@@ -90,23 +90,24 @@ class NICMonServer:
             changed = False
             cmd = "UPDATE interface set"
 
-            if out['nic_id'] != nic_id:
-                cmd += " nic_id = " + nic_id
+            if int(out[0]['nic_id']) != nic_id:
+                cmd += " nic_id = " + str(nic_id)
                 changed = True
-            if out['net_id'] != net_id:
-                cmd += " net_id = " + net_id
+            if int(out[0]['net_id']) != net_id:
+                cmd += " net_id = " + str(net_id)
                 changed = True
-            if out['interface_name'] != interface_name:
-                cmd += " interface_name = " + interface_name
+            if out[0]['interface_name'] != interface_name:
+                cmd += " interface_name = " + str(interface_name)
                 changed = True
-            if out['ip_address'] != ip_address:
+            if out[0]['ip_address'] != ip_address:
                 cmd += " ip_address = " + ip_address
                 changed = True
-            if out['mac_address'] != mac_address:
+            if out[0]['mac_address'] != mac_address:
                 cmd += " mac_address = " + mac_address
                 changed = True
 
             if changed:
+                cmd += " where server_id = " + str(server_id) + " and interface_name = \"" + interface_name + "\""
                 self.logger.debug("in update_nic_info(), Update Query: " + cmd)
                 self._db_cursor.execute(cmd)
             else:
@@ -120,8 +121,8 @@ class NICMonServer:
             cmd = "Insert into " \
                   "interface (server_id, nic_id, net_id, interface_name, ip_address, mac_address) " \
                   "VALUES " \
-                  + "(\""+str(server_id)+"\", \""+str(nic_id)+"\", \""+str(net_id)+"\", \""\
-                        +str(interface_id)+"\", \""+ip_address+"\", \""+mac_address + "\")"
+                  + "(" + str(server_id) + "," + str(nic_id) + "," + str(net_id) + ", \"" \
+                  + interface_name + "\", \"" + ip_address + "\", \"" + mac_address + "\")"
 
             self.logger.debug("in update_nic_info(), Input Query: " + cmd)
             self._db_cursor.execute(cmd)
@@ -134,9 +135,7 @@ class NICMonServer:
 
     def get_nic_spec_id(self, __model, __vendor):
         if __model == 'NULL':
-            __model='None'
-
-        nic_id = 'NULL'
+            __model ='Unknown'
 
         cmd = 'select nic_id from nic_spec where model = \"' + __model +"\""
         self.logger.debug("in get_nic_spec_id(), DB Query: " + cmd)
@@ -166,7 +165,7 @@ class NICMonServer:
         else:
             # The NIC Model is exist
             nic_id = out[0]['nic_id']
-            self.logger.debug("in get_nic_spec_id(), NIC Model is exist" + __model + ' nic_id: ' + str(nic_id))
+            self.logger.debug("in get_nic_spec_id(), NIC Model is exist, " + __model + ' nic_id: ' + str(nic_id))
 
         return nic_id
 
@@ -180,7 +179,6 @@ class NICMonServer:
         self._db_cursor.execute(cmd)
         out = self._db_cursor.fetchallDict()
 
-        print __net_addr
         nic_ip = ipaddress.ip_address(__net_addr.split('/')[0])
 
         for net in out:
@@ -194,7 +192,8 @@ class NICMonServer:
         if net_id == 'NULL':
             # network is not exist
             net_addr = ipaddress.IPv4Interface(__net_addr).network.__str__().split('/')
-            cmd = "insert into network (net_address, net_subnet) values (\""+net_addr[0]+"\",\""+net_addr[1]+"\")"
+            cmd = "insert into network (net_name net_address, net_subnet) " \
+                  "values (\""+'Unknwon'+"\",\""+net_addr[0]+"\",\""+net_addr[1]+"\")"
             self.logger.debug("in get_net_id(), Insert new network DB Query: " + cmd)
             self._db_cursor.execute(cmd)
 
@@ -244,5 +243,4 @@ def create_nic_tuple(server_id):
     return nicmon.update_info(server_id, request.data)
 
 app.run(port=server_pt)
-
 

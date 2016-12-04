@@ -1,4 +1,4 @@
 #!/bin/bash
 
 sudo apt update
-sudo apt install -y ethtool lshw python-yaml
+sudo apt install -y ethtool lshw python-yaml python-httplib2

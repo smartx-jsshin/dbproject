@@ -155,7 +155,7 @@ class NICMonCollector:
         return nic_model
 
 if __name__ == "__main__":
-    fp = os.path.join(os.getcwd(), 'server_config.yaml')
+    fp = os.path.join(os.getcwd(), 'collector_config.yaml')
     if os.path.exists(fp):
         o = open(fp, mode='r').read(-1)
         d = yaml.load(o)
