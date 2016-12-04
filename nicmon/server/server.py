@@ -91,18 +91,28 @@ class NICMonServer:
             cmd = "UPDATE interface set"
 
             if (not out[0]['nic_id'] and nic_id is not 'NULL') or int(out[0]['nic_id']) != nic_id:
+                if changed:
+                    cmd += ","
                 cmd += " nic_id = " + str(nic_id)
                 changed = True
             if (not out[0]['net_id'] and net_id is not 'NULL') or int(out[0]['net_id']) != net_id:
+                if changed:
+                    cmd += ","
                 cmd += " net_id = " + str(net_id)
                 changed = True
             if out[0]['interface_name'] != interface_name:
+                if changed:
+                    cmd += ","
                 cmd += " interface_name = " + str(interface_name)
                 changed = True
             if (not out[0]['ip_address'] and ip_address is not 'NULL') or out[0]['ip_address'] != ip_address:
+                if changed:
+                    cmd += ","
                 cmd += " ip_address = " + ip_address
                 changed = True
             if (not out[0]['mac_address'] and 'mac_address' is not 'NULL') or out[0]['mac_address'] != mac_address:
+                if changed:
+                    cmd += ","
                 cmd += " mac_address = " + mac_address
                 changed = True
 
@@ -156,12 +166,12 @@ class NICMonServer:
             self.logger.debug("in get_nic_spec_id(), all nic_spec list: " + out.__str__())
 
             cmd = 'select nic_id from nic_spec where model = \"' + __model + "\""
-            self.logger.debug("in get_nic_spec_id(), DB Query: " + cmd)
+            self.logger.debug("in get_nic_spec_id(), Query to extract the added nic_model: " + cmd)
             self._db_cursor.execute(cmd)
             out = self._db_cursor.fetchallDict()
             self.logger.debug("in get_nic_spec_id(), " + "Query output: " + out.__str__())
             nic_id = out[0]['nic_id']
-            self.logger.debug("in get_nic_spec_id(), " + "nic_id :" + str(nic_id))
+
         else:
             # The NIC Model is exist
             nic_id = out[0]['nic_id']
@@ -198,8 +208,10 @@ class NICMonServer:
             self._db_cursor.execute(cmd)
 
             cmd = "select net_id from network where net_address = \"" + net_addr[0] + "\""
-            self.logger.debug("in get_net_id(), Insert new network DB Query: " + cmd)
+            self.logger.debug("in get_net_id(), Query for the added network: " + cmd)
+            self._db_cursor.execute(cmd)
             out = self._db_cursor.fetchallDict()
+            self.logger.debug("in get_net_id(), Query Output: ", + out.__str__())
             net_id = out[0]['net_id']
 
         return net_id
