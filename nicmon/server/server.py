@@ -192,8 +192,8 @@ class NICMonServer:
         if net_id == 'NULL':
             # network is not exist
             net_addr = ipaddress.IPv4Interface(__net_addr).network.__str__().split('/')
-            cmd = "insert into network (net_name net_address, net_subnet) " \
-                  "values (\""+'Unknwon'+"\",\""+net_addr[0]+"\",\""+net_addr[1]+"\")"
+            cmd = "insert into network (net_name, net_address, net_subnet) " \
+                  "values (\""+'Unknown'+"\",\""+net_addr[0]+"\",\""+net_addr[1]+"\")"
             self.logger.debug("in get_net_id(), Insert new network DB Query: " + cmd)
             self._db_cursor.execute(cmd)
 
@@ -242,5 +242,5 @@ app = Flask(__name__)
 def create_nic_tuple(server_id):
     return nicmon.update_info(server_id, request.data)
 
-app.run(port=server_pt)
+app.run(host='0.0.0.0', port=server_pt)
 
