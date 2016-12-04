@@ -1,9 +1,11 @@
+import os
 import subprocess
 import shlex
 
 import httplib2
 import logging
 import json
+import yaml
 import time
 
 class NICMonCollector:
@@ -153,11 +155,21 @@ class NICMonCollector:
         return nic_model
 
 if __name__ == "__main__":
-    host_id = 1
-    server_ip = '127.0.0.1'
-    server_pt = '17777'
-    collect_cycle = 10
+    fp = os.path.join(os.getcwd(), 'server_config.yaml')
+    if os.path.exists(fp):
+        o = open(fp, mode='r').read(-1)
+        d = yaml.load(o)
 
-    collector = NICMonCollector(host_id, server_ip, server_pt)
-    collector.collect_nic()
-    # time.sleep(collect_cycle)
+        host_id = d['host_id']
+        server_ip = d['server_ipaddress']
+        server_pt = d['server_port']
+        collect_cycle = d['collect_cycle']
+        collector = NICMonCollector(host_id, server_ip, server_pt)
+
+        while True:
+            collector.collect_nic()
+            time.sleep(collect_cycle)
+
+    else:
+        print "Configuration file is not found: server_config.yaml"
+        exit(1)

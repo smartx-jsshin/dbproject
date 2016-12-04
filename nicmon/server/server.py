@@ -1,9 +1,11 @@
+import os
 import subprocess
 import shlex
 from flask import Flask, request
 import MySQLdb
 import logging
 import json
+import yaml
 import ipaddress
 
 
@@ -217,13 +219,21 @@ class NICMonServer:
         return subproc.returncode, cmdout, cmderr
 
 # Variable Definition Part
-server_pt = "17777"
-db_ip = "127.0.0.1"
-db_user = "dbprj"
-db_password = 'dbprj'
-db_name = 'dbprj'
+fp = os.path.join(os.getcwd(), 'server_config.yaml')
+if os.path.exists(fp):
+    o = open(fp, mode='r').read(-1)
+    d = yaml.load(o)
 
-nicmon = NICMonServer(db_ip, db_user, db_password, db_name)
+    server_pt = d['server_port']
+    db_ip = d['db_ipaddress']
+    db_user = d['db_userid']
+    db_password = d['db_password']
+    db_name = d['db_name']
+
+    nicmon = NICMonServer(db_ip, db_user, db_password, db_name)
+else:
+    print "Configuration file is not found: server_config.yaml"
+    exit(1)
 
 # REST API Part
 app = Flask(__name__)

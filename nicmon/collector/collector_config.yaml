@@ -1,0 +1,4 @@
+host_id: 2
+server_ip: '127.0.0.1'
+server_pt: '17777'
+collect_cycle: 10

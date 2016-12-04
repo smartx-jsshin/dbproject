@@ -1,0 +1,6 @@
+host_id: 1
+server_port: "17777"
+db_ipaddress: "127.0.0.1"
+db_userid: "dbprj"
+db_password: 'dbprj'
+db_name: 'dbprj'
