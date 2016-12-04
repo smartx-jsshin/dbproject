@@ -1,4 +1,3 @@
-import os
 import subprocess
 import shlex
 from flask import Flask, request
@@ -10,11 +9,16 @@ import ipaddress
 
 class NICMonServer:
     def __init__(self, __db_ip, __user, __password, __dbname):
-        self.db = None
+        self._db_conn = None
+        self._db_cursor = None
         self.logger = None
 
+        self._db_host = __db_ip
+        self._db_user = __user
+        self._db_passwd = __password
+        self._db_name = __dbname
+
         self.init_logger()
-        self.init_db(__db_ip, __user, __password, __dbname)
 
     def init_logger(self):
         self.logger = logging.getLogger(__name__)
@@ -25,13 +29,19 @@ class NICMonServer:
         ch.setFormatter(fm)
         self.logger.addHandler(ch)
 
-    def init_db(self, __db_ip, __user, __password, __dbname):
-        self.db = MySQLdb.connect(host=__db_ip,
-                                  user=__user,
-                                  passwd=__password,
-                                  db=__dbname).cursor(MySQLdb.cursors.DictCursor)
+    def open_db(self):
+        self._db_conn = MySQLdb.connect(host=self._db_host,
+                                        user=self._db_user,
+                                        passwd=self._db_passwd,
+                                        db=self._db_name)
+        self._db_cursor = self._db_conn.cursor(MySQLdb.cursors.DictCursor)
+        self._db_conn.autocommit(True)
+
+    def close_db(self):
+        self._db_conn.close()
 
     def update_info(self, __server_id, __nic_info):
+        self.open_db()
         try:
             nic_info = json.loads(__nic_info)
         except ValueError, e:
@@ -44,24 +54,21 @@ class NICMonServer:
         for nic in nic_info:
             self.update_nic_info(__server_id, nic)
 
+        self.close_db()
         return "Updated Successfully"
 
     def update_nic_info(self, __server_id, __nic_info):
-        # Server should update follow informations
+        # Server should update follow information
         # in "network" table
         # interface_id(auto_increment), server_id, nic_id(FK), net_id(FK), interface_name, ip_address, mac_address
 
-        # Check duplicated tuple in "network" table
-
-        interface_id = 1
+        interface_id = None
         server_id = __server_id
         nic_id = self.get_nic_spec_id(__nic_info['model'], __nic_info['vendor'])
         interface_name = __nic_info['name']
         ip_address = __nic_info['inet']['ipaddr']
         mac_address = __nic_info['ether']['macaddr']
-
-        net_addr = ipaddress.IPv4Interface(__nic_info['inet']['ipaddr']).network.__str__()
-        net_id = self.get_net_id(net_addr)
+        net_id = self.get_net_id(ip_address)
 
         # Check the constraint and replace None value in to 'NULL' string
         if not interface_id or not server_id or not interface_name:
@@ -70,8 +77,8 @@ class NICMonServer:
         cmd = "select * from interface where server_id = " + server_id + \
               ' and interface_name = \"' + interface_name + '\"'
         self.logger.debug("in update_nic_info(), DB Query: " + cmd)
-        self.db.execute(cmd)
-        out = self.db.fetchallDict()
+        self._db_cursor.execute(cmd)
+        out = self._db_cursor.fetchallDict()
         self.logger.debug("in update_nic_info(), retrieve tuples from the DB: " + out.__str__())
 
         if len(out) is 1:
@@ -81,12 +88,6 @@ class NICMonServer:
             changed = False
             cmd = "UPDATE interface set"
 
-            if out['interface_id'] != interface_id:
-                cmd += " interface_id = " + interface_id
-                changed = True
-            if out['server_id'] != server_id:
-                cmd += " server_id = " + server_id
-                changed = True
             if out['nic_id'] != nic_id:
                 cmd += " nic_id = " + nic_id
                 changed = True
@@ -105,59 +106,64 @@ class NICMonServer:
 
             if changed:
                 self.logger.debug("in update_nic_info(), Update Query: " + cmd)
-                self.db.execute(cmd)
+                self._db_cursor.execute(cmd)
             else:
                 self.logger.debug("in update_nic_info(), No Update for NIC information from Server "+ server_id)
 
         elif len(out) is 0:
             # Interfaces is new
-            self.logger.debug("in update_nic_info(), Input new tuple into interface table: %s %s %s %s %s %s %s"
-                              % (interface_id, server_id, nic_id, net_id, interface_name, ip_address, mac_address))
+            self.logger.debug("in update_nic_info(), Input new tuple into interface table:  %s %s %s %s %s %s"
+                              % (server_id, nic_id, net_id, interface_name, ip_address, mac_address))
 
-            #for i in server_id, nic_id, interface_name, ip_address, mac_address, net_id, interface_id:
             cmd = "Insert into " \
-                  "interface (interface_id, server_id, nic_id, net_id, interface_name, ip_address, mac_address) " \
+                  "interface (server_id, nic_id, net_id, interface_name, ip_address, mac_address) " \
                   "VALUES " \
-                  + "(\""+str(interface_id)+"\", \""+str(server_id)+"\", \""+str(nic_id)+"\", \""+str(net_id)+"\", \""\
+                  + "(\""+str(server_id)+"\", \""+str(nic_id)+"\", \""+str(net_id)+"\", \""\
                         +str(interface_id)+"\", \""+ip_address+"\", \""+mac_address + "\")"
 
             self.logger.debug("in update_nic_info(), Input Query: " + cmd)
-            self.db.execute(cmd)
+            self._db_cursor.execute(cmd)
+
+            cmd = 'select * from interface'
+            self.logger.debug("in update_nic_info(), DB Query to list all interface: " + cmd)
+            self._db_cursor.execute(cmd)
+            out = self._db_cursor.fetchallDict()
+            self.logger.debug("in update_nic_info(), all interface list: " + out.__str__())
 
     def get_nic_spec_id(self, __model, __vendor):
         if __model == 'NULL':
-            return None
+            __model='None'
 
-        nic_id = None
+        nic_id = 'NULL'
 
         cmd = 'select nic_id from nic_spec where model = \"' + __model +"\""
         self.logger.debug("in get_nic_spec_id(), DB Query: " + cmd)
-        self.db.execute(cmd)
-        out = self.db.fetchallDict()
+        self._db_cursor.execute(cmd)
+        out = self._db_cursor.fetchallDict()
         self.logger.debug("in get_nic_spec_id(), " + "Query output: " + out.__str__())
 
         if len(out) is 0:
             # The NIC Model is not exist
             cmd = "insert into nic_spec(model, vendor) values (\"" + __model+"\", \"" + __vendor + "\")"
             self.logger.debug("in get_nic_spec_id(), NIC Model is not exist. Add new nic_model: " + cmd)
-            self.db.execute(cmd)
+            self._db_cursor.execute(cmd)
 
-            cmd = 'select nic_id from nic_spec'
+            cmd = 'select * from nic_spec'
             self.logger.debug("in get_nic_spec_id(), DB Query to list all nic_spec: " + cmd)
-            self.db.execute(cmd)
-            out = self.db.fetchallDict()
+            self._db_cursor.execute(cmd)
+            out = self._db_cursor.fetchallDict()
             self.logger.debug("in get_nic_spec_id(), all nic_spec list: " + out.__str__())
 
             cmd = 'select nic_id from nic_spec where model = \"' + __model + "\""
             self.logger.debug("in get_nic_spec_id(), DB Query: " + cmd)
-            self.db.execute(cmd)
-            out = self.db.fetchallDict()
+            self._db_cursor.execute(cmd)
+            out = self._db_cursor.fetchallDict()
             self.logger.debug("in get_nic_spec_id(), " + "Query output: " + out.__str__())
             nic_id = out[0]['nic_id']
             self.logger.debug("in get_nic_spec_id(), " + "nic_id :" + str(nic_id))
         else:
             # The NIC Model is exist
-            nic_id = int(''.join(d for d in out[0]['nic_id'].__str__() if d.isdigit()))
+            nic_id = out[0]['nic_id']
             self.logger.debug("in get_nic_spec_id(), NIC Model is exist" + __model + ' nic_id: ' + str(nic_id))
 
         return nic_id
@@ -167,36 +173,32 @@ class NICMonServer:
             return 'NULL'
 
         net_id = 'NULL'
-        """
-        cmd = 'select net_id from network where net_address = \"' + __net_addr.split('/')[0] +'\"'
-        self.logger.debug("in get_net_id(), DB Query: " + cmd)
-        self.db.execute(cmd)
-        out = self.db.fetchallDict()
-        """
 
         cmd = 'select net_id, net_address, net_subnet from network'
-        self.db.execute(cmd)
-        out = self.db.fetchallDict()
+        self._db_cursor.execute(cmd)
+        out = self._db_cursor.fetchallDict()
 
-        mask = __net_addr.split('/')[1]
-        nic_ip = ipaddress.IPv4Address(__net_addr.split('/')[0])
+        print __net_addr
+        nic_ip = ipaddress.ip_address(__net_addr.split('/')[0])
 
         for net in out:
-            net_ip = ipaddress.IPv4Network(net['net_address']+"/"+str(net['net_subnet']))
+            addr = net['net_address']+'/'+net['net_subnet']
+            addr = ipaddress.ip_interface(addr.decode("utf-8"))
+            net_ip = ipaddress.IPv4Network(addr)
             if nic_ip in net_ip:
                 net_id = net['net_id']
                 break
 
         if net_id == 'NULL':
             # network is not exist
-            net_addr = ipaddress.IPv4Interface(__net_addr).network.__str__().split("/")[0]
-            cmd = "insert into network (net_address, net_subnet) values (\"" + net_addr + "\",\"" + mask +"\")"
+            net_addr = ipaddress.IPv4Interface(__net_addr).network.__str__().split('/')
+            cmd = "insert into network (net_address, net_subnet) values (\""+net_addr[0]+"\",\""+net_addr[1]+"\")"
             self.logger.debug("in get_net_id(), Insert new network DB Query: " + cmd)
-            self.db.execute(cmd)
+            self._db_cursor.execute(cmd)
 
-            cmd = "select net_id from network where net_address = \"" + net_addr + "\""
+            cmd = "select net_id from network where net_address = \"" + net_addr[0] + "\""
             self.logger.debug("in get_net_id(), Insert new network DB Query: " + cmd)
-            out = self.db.fetchallDict()
+            out = self._db_cursor.fetchallDict()
             net_id = out[0]['net_id']
 
         return net_id
